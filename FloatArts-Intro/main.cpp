@@ -2,7 +2,7 @@
 * Float Arts
 * By Matin Afzal Asr
 * 27/9/2024
-* 
+*
 * ERROR Categories.
 *	PVE: Pre-Visual Error.
 *	AVE: After-Visual Error.
@@ -47,7 +47,7 @@ const char* vertexShaderCode =
 "	texCoord = aTex;\n"
 "}\0;"
 ;
-const char* fragmentShaderCode = 
+const char* fragmentShaderCode =
 "#version 330 core\n"
 "out vec4 FragColor;\n"
 "in vec3 color;\n"
@@ -153,7 +153,7 @@ void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime,
 }
 
 GLuint shaderProgramInit() {
-	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER), 
+	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER),
 		fragmentShader = glCreateShader(GL_FRAGMENT_SHADER),
 		shaderProgram = glCreateProgram();
 
@@ -164,7 +164,7 @@ GLuint shaderProgramInit() {
 	glShaderSource(fragmentShader, 1, &fragmentShaderCode, NULL);
 	glCompileShader(fragmentShader);
 	checkShaderCompileErrors(fragmentShader);
-	
+
 	glAttachShader(shaderProgram, vertexShader);
 	glAttachShader(shaderProgram, fragmentShader);
 	glLinkProgram(shaderProgram);
@@ -189,7 +189,7 @@ std::tuple<GLuint, GLuint, GLuint> bindingInit() {
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	
+
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 

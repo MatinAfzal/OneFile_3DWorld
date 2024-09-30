@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{98e5af3a-e1aa-453f-a356-fb0a80d94131}</ProjectGuid>
-    <RootNamespace>FloatArts_Intro</RootNamespace>
+    <ProjectGuid>{541a2cec-3912-4507-8c2f-8b4ce3158ec6}</ProjectGuid>
+    <RootNamespace>FloatArtsIntro</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -71,20 +71,20 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\FloatArts\Libraries\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\pc\Desktop\Desktop\Projects\Float-Arts\FloatArts-Intro\Libraries\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -147,12 +147,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\FloatArts-Intro\stb.cpp" />
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="stb.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\..\FloatArts.png" />
+    <Image Include="..\..\..\..\FloatArts-Intro\FloatArts.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

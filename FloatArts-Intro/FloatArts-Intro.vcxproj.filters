@@ -14,7 +14,7 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
     <Filter Include="Resource Files\Textures">
-      <UniqueIdentifier>{e743819f-2c5e-4110-8367-239a5ceaca3c}</UniqueIdentifier>
+      <UniqueIdentifier>{66ab1afc-cc9b-4f6c-8343-147b7f5f66c2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -24,12 +24,12 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stb.cpp">
+    <ClCompile Include="..\..\..\..\FloatArts-Intro\stb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\..\FloatArts.png">
+    <Image Include="..\..\..\..\FloatArts-Intro\FloatArts.png">
       <Filter>Resource Files\Textures</Filter>
     </Image>
   </ItemGroup>
