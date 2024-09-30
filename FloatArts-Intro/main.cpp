@@ -10,6 +10,7 @@
 *	INIT: Initializing Error.
 *	MATH: Arithmetic Error.
 *	SHAD: Shader Error.
+*	LOAD: Loading Error.
 */
 #include <iostream>
 #include <tuple>
@@ -17,13 +18,20 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stb/stb_image.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
+#define ASPECT_RATIO SCREEN_WIDTH / SCREEN_HEIGHT
+#define FOV glm::radians(45.0f)
+#define NEAR_PLANE 0.1f
+#define FAR_PLANE 1000.0f
 
-GLuint textureFloatArts;
-
-void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, GLuint uniformScale);
+// Functions
+void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, GLuint uniformScale, 
+	GLuint uniformModel, GLuint uniformView, GLuint uniformProj);
 GLuint shaderProgramInit();
 void terminateShaderProgram(GLuint program);
 std::tuple<GLuint, GLuint, GLuint> bindingInit();
@@ -31,6 +39,16 @@ void terminateBinding(GLuint VAO, GLuint VBO, GLuint EBO);
 void checkShaderCompileErrors(GLuint shader);
 void checkProgramLinkErrors(GLuint program);
 
+// Global Variables
+glm::mat4 model = glm::mat4(1.0f);
+glm::mat4 view = glm::mat4(1.0f);
+glm::mat4 proj = glm::mat4(1.0f);
+glm::vec3 camPos = glm::vec3(0.0f, 0.0f, -300.0f);
+float rotation = 0.0f;
+float rotatingSpeed = 30.0f;
+double startTime = glfwGetTime();
+double lastTime = startTime;
+GLuint textureFloatArts;
 float screenColor[4] = { 1.f, 1.f, 1.f, 1.f };
 const char* vertexShaderCode =
 "#version 330 core\n"
@@ -38,11 +56,15 @@ const char* vertexShaderCode =
 "layout (location = 1) in vec3 aColor;\n"
 "layout (location = 2) in vec2 aTex;\n"
 "uniform float scale;\n"
+"uniform mat4 model;\n"
+"uniform mat4 view;\n"
+"uniform mat4 proj;\n"
 "out vec3 color;\n"
 "out vec2 texCoord;\n"
 "void main()\n"
 "{\n"
-"	gl_Position = vec4(aPos.x + aPos.x * scale, aPos.y + aPos.y * scale, aPos.z + aPos.z * scale, 1.0);\n"
+"	//gl_Position = vec4(aPos.x + aPos.x * scale, aPos.y + aPos.y * scale, aPos.z + aPos.z * scale, 1.0);\n"
+"	gl_Position = proj * view * model * vec4(aPos, 1.0f);\n"
 "	color = aColor;\n"
 "	texCoord = aTex;\n"
 "}\0;"
@@ -59,19 +81,64 @@ const char* fragmentShaderCode =
 "}\n\0;"
 ;
 
-GLfloat vertices[] =
-{
-	// Vertices               Colors                Texture Coordinates
-	-0.5f, -0.75f, 0.0f,     1.0f, 0.5f, 1.0f,     0.0f, 0.0f,  // Bottom-left
-	-0.5f,  0.75f, 0.0f,     1.0f, 1.0f, 1.0f,     0.0f, 1.0f,  // Top-left
-	 0.5f,  0.75f, 0.0f,     1.0f, 0.5f, 1.0f,     1.0f, 1.0f,  // Top-right
-	 0.5f, -0.75f, 0.0f,     1.0f, 1.0f, 1.0f,     1.0f, 0.0f   // Bottom-right
+GLfloat vertices[] = {
+	// Positions          // Colors               // Texture Coordinates
+	// Back Face
+	-0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,    1.0f, 0.0f,  // Back-left-bottom
+	0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,     0.0f, 0.0f,  // Back-right-bottom
+	0.5f,  0.5f, -0.5f,  1.0f, 0.0f, 0.0f,     0.0f, 1.0f,  // Back-right-top
+	-0.5f,  0.5f, -0.5f,  1.0f, 0.0f, 0.0f,    1.0f, 1.0f,  // Back-left-top
+
+	// Front Face
+	-0.5f, -0.5f,  0.5f,  1.0f, 1.0f, 1.0f,    0.0f, 0.0f,  // Front-left-bottom
+	0.5f, -0.5f,  0.5f,  1.0f, 1.0f, 1.0f,     1.0f, 0.0f,  // Front-right-bottom
+	0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f,     1.0f, 1.0f,  // Front-right-top
+	-0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f,    0.0f, 1.0f,  // Front-left-top
+
+	// Left Face (no texture)
+	-0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-bottom
+	-0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-bottom
+	-0.5f,  0.5f,  0.5f,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-top
+	-0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-top
+
+	// Right Face (no texture)
+	0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Back-right-bottom
+	0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Front-right-bottom
+	0.5f,  0.5f,  0.5f,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Front-right-top
+	0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Back-right-top
+
+	// Top Face (no texture)
+	-0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-top
+	0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,     0.0f, 0.0f,  // Back-right-top
+	0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f,     0.0f, 0.0f,  // Front-right-top
+	-0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-top
+
+	// Bottom Face (no texture)
+	-0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Back-left-bottom
+	0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,     0.0f, 0.0f,  // Back-right-bottom
+	0.5f, -0.5f,  0.5f,  0.5f, 0.5f, 0.5f,     0.0f, 0.0f,  // Front-right-bottom
+	-0.5f, -0.5f,  0.5f,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f   // Front-left-bottom
 };
 
-GLuint indices[] =
-{
-	0, 1, 2,  // First triangle
-	0, 2, 3   // Second triangle
+GLuint indices[] = {
+	// Back face
+	0, 1, 2,
+	0, 2, 3,
+	// Front face
+	4, 5, 6,
+	4, 6, 7,
+	// Left face
+	8, 9, 10,
+	8, 10, 11,
+	// Right face
+	12, 13, 14,
+	12, 14, 15,
+	// Top face
+	16, 17, 18,
+	16, 18, 19,
+	// Bottom face
+	20, 21, 22,
+	20, 22, 23
 };
 
 int main() {
@@ -105,11 +172,19 @@ int main() {
 	// Uniforms
 	GLuint uniformScale = glGetUniformLocation(program, "scale");
 	GLuint uniformTexture0 = glGetUniformLocation(program, "tex0");
+	GLuint uniformModelMat = glGetUniformLocation(program, "model");
+	GLuint uniformViewMat = glGetUniformLocation(program, "view");
+	GLuint uniformProjMat = glGetUniformLocation(program, "proj");
 
 	// Textures
 	int textureFA_Height, textureFA_Width, textureFA_Col;
 	stbi_set_flip_vertically_on_load(1);
 	unsigned char* lastLoadedTexture = stbi_load("FloatArts.png", &textureFA_Width, &textureFA_Height, &textureFA_Col, 0);
+	if (!lastLoadedTexture) {
+		std::cerr << "ERROR [AVE], TYPE [LOAD]: can't load (FloatArts.png) texture.";
+		glfwTerminate();
+		return -1;
+	}
 	glGenTextures(1, &textureFloatArts);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, textureFloatArts);
@@ -125,8 +200,12 @@ int main() {
 	glUseProgram(program);
 	glUniform1i(uniformTexture0, 0);
 
+	// Tranformations
+	view = glm::translate(view, camPos);
+	proj = glm::perspective(FOV, (float)ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
+
 	while (!glfwWindowShouldClose(window)) {
-		display(window, program, VAO, glfwGetTime(), uniformScale);
+		display(window, program, VAO, glfwGetTime(), uniformScale, uniformModelMat, uniformViewMat, uniformProjMat);
 	}
 
 	terminateBinding(VAO, VBO, EBO);
@@ -138,16 +217,32 @@ int main() {
 }
 
 //******************************
-void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, GLuint uniformScale) {
+void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, GLuint uniformScale, 
+	GLuint uniformModel, GLuint uniformView, GLuint uniformProj) {
+	glEnable(GL_DEPTH_TEST);
 	glClearColor(screenColor[0], screenColor[1], screenColor[2], screenColor[3]);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUseProgram(program);
-	glUniform1f(uniformScale, -0.5f);
+	//glUniform1f(uniformScale, -0.5f);
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view));
+	glUniformMatrix4fv(uniformProj, 1, GL_FALSE, glm::value_ptr(proj));
 	glBindTexture(GL_TEXTURE_2D, textureFloatArts);
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
 
+	// Rotating
+	model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+	//rotation = rotatingSpeed; // static rotation
+	double crntTime = glfwGetTime();
+	if (crntTime - lastTime >= 1 /60) {
+		if(rotation <= 10400)
+			rotation += rotatingSpeed;
+		lastTime = crntTime;
+		//std::cout << rotation << std::endl;
+	}
+	// 5400, 10423
 	glfwSwapBuffers(window);
 	glfwPollEvents();
 }
