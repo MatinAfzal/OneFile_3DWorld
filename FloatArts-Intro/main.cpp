@@ -21,6 +21,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include<glm/gtx/rotate_vector.hpp>
+#include<glm/gtx/vector_angle.hpp>
 
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
@@ -30,41 +32,51 @@
 #define FAR_PLANE 1000.0f
 
 // Functions
-void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, GLuint uniformScale, 
-	GLuint uniformModel, GLuint uniformView, GLuint uniformProj);
+void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, 
+	GLuint uniformCamMatrix);
+
 GLuint shaderProgramInit();
 void terminateShaderProgram(GLuint program);
+
 std::tuple<GLuint, GLuint, GLuint> bindingInit();
 void terminateBinding(GLuint VAO, GLuint VBO, GLuint EBO);
+
+void inputs(GLFWwindow* window);
+
 void checkShaderCompileErrors(GLuint shader);
 void checkProgramLinkErrors(GLuint program);
 
+
 // Global Variables
 glm::mat4 model = glm::mat4(1.0f);
-glm::mat4 view = glm::mat4(1.0f);
-glm::mat4 proj = glm::mat4(1.0f);
 glm::vec3 camPos = glm::vec3(0.0f, 0.0f, -300.0f);
+glm::vec3 orientation = glm::vec3(0.0f, 0.0f, 1.0f);
+glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+
 float rotation = 0.0f;
 float rotatingSpeed = 30.0f;
+float camSpeed = 0.1;
+float sensitivity = 100.0;
+bool firstClick = true;
+
 double startTime = glfwGetTime();
 double lastTime = startTime;
+
 GLuint textureFloatArts;
+
 float screenColor[4] = { 1.f, 1.f, 1.f, 1.f };
+
 const char* vertexShaderCode =
 "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
 "layout (location = 1) in vec3 aColor;\n"
 "layout (location = 2) in vec2 aTex;\n"
-"uniform float scale;\n"
-"uniform mat4 model;\n"
-"uniform mat4 view;\n"
-"uniform mat4 proj;\n"
+"uniform mat4 camMatrix;\n"
 "out vec3 color;\n"
 "out vec2 texCoord;\n"
 "void main()\n"
 "{\n"
-"	//gl_Position = vec4(aPos.x + aPos.x * scale, aPos.y + aPos.y * scale, aPos.z + aPos.z * scale, 1.0);\n"
-"	gl_Position = proj * view * model * vec4(aPos, 1.0f);\n"
+"	gl_Position = camMatrix * vec4(aPos, 1.0f);\n"
 "	color = aColor;\n"
 "	texCoord = aTex;\n"
 "}\0;"
@@ -108,16 +120,16 @@ GLfloat vertices[] = {
 	0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Back-right-top
 
 	// Top Face (no texture)
-	-0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-top
-	0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,     0.0f, 0.0f,  // Back-right-top
-	0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f,     0.0f, 0.0f,  // Front-right-top
-	-0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-top
+	-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-top
+	0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-right-top
+	0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-right-top
+	-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-top
 
 	// Bottom Face (no texture)
-	-0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Back-left-bottom
-	0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,     0.0f, 0.0f,  // Back-right-bottom
-	0.5f, -0.5f,  0.5f,  0.5f, 0.5f, 0.5f,     0.0f, 0.0f,  // Front-right-bottom
-	-0.5f, -0.5f,  0.5f,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f   // Front-left-bottom
+	-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Back-left-bottom
+	0.5f, -0.5f, -0.5f,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Back-right-bottom
+	0.5f, -0.5f,  0.5f,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Front-right-bottom
+	-0.5f, -0.5f,  0.5f, 0.5f, 0.5f, 0.5f,    0.0f, 0.0f   // Front-left-bottom
 };
 
 GLuint indices[] = {
@@ -170,11 +182,8 @@ int main() {
 	std::tie(VAO, VBO, EBO) = bindingInit();
 
 	// Uniforms
-	GLuint uniformScale = glGetUniformLocation(program, "scale");
 	GLuint uniformTexture0 = glGetUniformLocation(program, "tex0");
-	GLuint uniformModelMat = glGetUniformLocation(program, "model");
-	GLuint uniformViewMat = glGetUniformLocation(program, "view");
-	GLuint uniformProjMat = glGetUniformLocation(program, "proj");
+	GLuint uniformCamMatrix = glGetUniformLocation(program, "camMatrix");
 
 	// Textures
 	int textureFA_Height, textureFA_Width, textureFA_Col;
@@ -200,12 +209,9 @@ int main() {
 	glUseProgram(program);
 	glUniform1i(uniformTexture0, 0);
 
-	// Tranformations
-	view = glm::translate(view, camPos);
-	proj = glm::perspective(FOV, (float)ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
-
 	while (!glfwWindowShouldClose(window)) {
-		display(window, program, VAO, glfwGetTime(), uniformScale, uniformModelMat, uniformViewMat, uniformProjMat);
+		display(window, program, VAO, glfwGetTime(), uniformCamMatrix);
+		inputs(window);
 	}
 
 	terminateBinding(VAO, VBO, EBO);
@@ -217,32 +223,36 @@ int main() {
 }
 
 //******************************
-void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, GLuint uniformScale, 
-	GLuint uniformModel, GLuint uniformView, GLuint uniformProj) {
+void display(GLFWwindow* window, GLuint program, GLuint VAO, double currentTime, 
+	GLuint uniformCamMatrix) {
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(screenColor[0], screenColor[1], screenColor[2], screenColor[3]);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUseProgram(program);
-	//glUniform1f(uniformScale, -0.5f);
-	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view));
-	glUniformMatrix4fv(uniformProj, 1, GL_FALSE, glm::value_ptr(proj));
-	glBindTexture(GL_TEXTURE_2D, textureFloatArts);
-	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
 
-	// Rotating
+	// Rotating 5400, 10423
 	model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
 	//rotation = rotatingSpeed; // static rotation
 	double crntTime = glfwGetTime();
-	if (crntTime - lastTime >= 1 /60) {
-		if(rotation <= 10400)
+	if (crntTime - lastTime >= 1 / 60) {
+		if (rotation <= 10400)
 			rotation += rotatingSpeed;
 		lastTime = crntTime;
 		//std::cout << rotation << std::endl;
 	}
-	// 5400, 10423
+
+	// Camera
+	glm::mat4 view = glm::mat4(1.0f);
+	glm::mat4 proj = glm::mat4(1.0f);
+	view = glm::lookAt(camPos, camPos + orientation, up);
+	proj = glm::perspective(FOV, (float)ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
+	glUniformMatrix4fv(uniformCamMatrix, 1, GL_FALSE, glm::value_ptr(proj * view * model));
+
+	glBindTexture(GL_TEXTURE_2D, textureFloatArts);
+	glBindVertexArray(VAO);
+	glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
+
 	glfwSwapBuffers(window);
 	glfwPollEvents();
 }
@@ -308,6 +318,61 @@ void terminateBinding(GLuint VAO, GLuint VBO, GLuint EBO) {
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
 	glDeleteBuffers(1, &EBO);
+}
+
+void inputs(GLFWwindow* window) {
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+		camPos += camSpeed * orientation;
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+		camPos += camSpeed * -glm::normalize(glm::cross(orientation, up));
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+		camPos += camSpeed * -orientation;
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+		camPos += camSpeed * glm::normalize(glm::cross(orientation, up));
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		camPos += camSpeed * up;
+	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+		camPos += camSpeed * -up;
+
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+		camSpeed = 0.4f;
+
+	else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE)
+		camSpeed = 0.1f;
+
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+	{
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+
+		if (firstClick)
+		{
+			glfwSetCursorPos(window, (SCREEN_WIDTH / 2), (SCREEN_HEIGHT / 2));
+			firstClick = false;
+		}
+
+		double mouseX;
+		double mouseY;
+		glfwGetCursorPos(window, &mouseX, &mouseY);
+
+		float rotX = sensitivity * (float)(mouseY - (SCREEN_HEIGHT / 2)) / SCREEN_HEIGHT;
+		float rotY = sensitivity * (float)(mouseX - (SCREEN_WIDTH / 2)) / SCREEN_WIDTH;
+
+		glm::vec3 newOrientation = glm::rotate(orientation, glm::radians(-rotX), glm::normalize(glm::cross(orientation, up)));
+
+		if (abs(glm::angle(newOrientation, up) - glm::radians(90.0f)) <= glm::radians(85.0f))
+		{
+			orientation = newOrientation;
+		}
+
+		orientation = glm::rotate(orientation, glm::radians(-rotY), up);
+
+		glfwSetCursorPos(window, (SCREEN_WIDTH / 2), (SCREEN_HEIGHT / 2));
+	}
+	else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE)
+	{
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		firstClick = true;
+	}
 }
 
 void checkShaderCompileErrors(GLuint shader) {
