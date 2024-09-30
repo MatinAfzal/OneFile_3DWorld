@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{3a616765-65fb-4fd1-91ab-bb606c2ad325}</ProjectGuid>
-    <RootNamespace>FloatArts_Intro1</RootNamespace>
+    <ProjectGuid>{98e5af3a-e1aa-453f-a356-fb0a80d94131}</ProjectGuid>
+    <RootNamespace>FloatArts_Intro</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -152,7 +152,7 @@
     <ClCompile Include="stb.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\..\..\FloatArts.png" />
+    <Image Include="..\..\..\FloatArts.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

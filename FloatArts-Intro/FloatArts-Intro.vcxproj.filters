@@ -29,7 +29,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\..\..\FloatArts.png">
+    <Image Include="..\..\..\FloatArts.png">
       <Filter>Resource Files\Textures</Filter>
     </Image>
   </ItemGroup>
