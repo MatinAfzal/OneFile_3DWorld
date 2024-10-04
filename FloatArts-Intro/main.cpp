@@ -120,7 +120,6 @@ const char* fragmentShaderCode =
 const char* vertexShaderLightCode =
 "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
-"layout (location = 1) in vec3 Color;\n"
 "uniform mat4 model;\n"
 "uniform mat4 camMatrix;\n"
 "void main()\n"
@@ -272,8 +271,9 @@ int main() {
 	cubeModel = glm::translate(cubeModel, cubePos);
 
 	glUseProgram(lightShader);
-	glUniform4fv(uniformModel_L, 1, glm::value_ptr(cubeModel));
+	glUniformMatrix4fv(uniformModel_L, 1, GL_FALSE, glm::value_ptr(lightModel));
 	glUniform4f(uniformLightColor_L, lightColor.x, lightColor.y, lightColor.z, lightColor.w);
+
 	glUseProgram(program);
 	glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(cubeModel));
 	glUniform4f(glGetUniformLocation(program, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
@@ -349,13 +349,10 @@ void display(GLFWwindow* window, GLuint program, GLuint lightShader, GLuint VAO,
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, sizeof(objectFloatArtsindices)/sizeof(int), GL_UNSIGNED_INT, 0);
 
-
 	glUseProgram(lightShader);
 	glUniformMatrix4fv(glGetUniformLocation(lightShader, "camMatrix"), 1, GL_FALSE, glm::value_ptr(proj * view));
-	glUniformMatrix4fv(glGetUniformLocation(lightShader, "model"), 1, GL_FALSE, glm::value_ptr(lightModel));
 	glBindVertexArray(LVAO);
 	glDrawElements(GL_TRIANGLES, sizeof(objectLightIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
-
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
@@ -398,7 +395,7 @@ GLuint shaderLightInit() {
 	glCompileShader(vertexShaderLight);
 	checkShaderCompileErrors(vertexShaderLight);
 
-	glShaderSource(fragmentShaderLight, 1, &fragmentShaderCode, NULL);
+	glShaderSource(fragmentShaderLight, 1, &fragmentShaderLightCode, NULL);
 	glCompileShader(fragmentShaderLight);
 	checkShaderCompileErrors(fragmentShaderLight);
 
