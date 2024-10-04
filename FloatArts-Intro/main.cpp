@@ -58,7 +58,6 @@ void checkProgramLinkErrors(GLuint program);
 
 void errorLog(std::string category, std::string type, std::string massage, std::string comment="");
 
-
 // Global Variables
 glm::mat4 model = glm::mat4(1.0f);
 glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 2.0f);
@@ -66,7 +65,7 @@ glm::vec3 orientation = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 
 glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, 1.0f);
+glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, 2.0f);
 glm::mat4 lightModel = glm::mat4(1.0f);
 
 glm::vec3 cubePos = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -91,17 +90,20 @@ const char* vertexShaderCode =
 "layout (location = 0) in vec3 aPos;\n"
 "layout (location = 1) in vec3 aColor;\n"
 "layout (location = 2) in vec2 aTex;\n"
+"layout (location = 3) in vec3 aNormals;\n"
 "uniform mat4 camMatrix;\n"
 "uniform mat4 model;\n"
 "out vec3 color;\n"
 "out vec2 texCoord;\n"
 "out vec3 crnt_pos;\n"
+"out vec3 normals;\n"
 "void main()\n"
 "{\n"
 "   crnt_pos = vec3(model * vec4(aPos, 1.0f));\n"
 "	gl_Position = camMatrix * vec4(crnt_pos, 1.0f);\n"
 "	color = aColor;\n"
 "	texCoord = aTex;\n"
+"   normals = aNormals;\n"
 "}\0;"
 ;
 const char* fragmentShaderCode =
@@ -109,12 +111,27 @@ const char* fragmentShaderCode =
 "out vec4 FragColor;\n"
 "in vec3 color;\n"
 "in vec2 texCoord;\n"
+"in vec3 crnt_pos;\n"
+"in vec3 normals;\n"
 "uniform sampler2D tex0;\n"
 "uniform vec4 lightColor;\n"
 "uniform vec3 lightPos;\n"
+"uniform vec3 cam_pos;\n"
 "void main()\n"
 "{\n"
-"	FragColor = texture(tex0, texCoord) * lightColor;\n"
+"   float ambient = 0.20;\n"
+
+"   vec3 normal = normalize(normals);\n"
+"   vec3 lightDirection = normalize(lightPos - crnt_pos);\n"
+"   float diffuse = max(dot(normal, lightDirection), 0.0f);\n"
+
+"   float specularLight = 0.50f;\n"
+"   vec3 viewDirection = normalize(cam_pos - crnt_pos);\n"
+"   vec3 reflectionDirection = reflect(-lightDirection, normal);\n"
+"   float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 8);\n"
+"   float specular = specAmount * specularLight;\n"
+
+"	FragColor = texture(tex0, texCoord) * lightColor * (diffuse + ambient + specular);\n"
 "}\n\0;"
 ;
 const char* vertexShaderLightCode =
@@ -138,44 +155,43 @@ const char* fragmentShaderLightCode =
 ;
 
 GLfloat objectFloatArtsvertices[] = {
-	// Positions          // Colors               // Texture Coordinates
+	// Positions          // Colors               // Texture Coordinates           // Normals
 	// Back Face
-	-0.5f * scale, -0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,    1.0f, 0.0f,  // Back-left-bottom
-	 0.5f * scale, -0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,     0.0f, 0.0f,  // Back-right-bottom
-	 0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,     0.0f, 1.0f,  // Back-right-top
-	-0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,    1.0f, 1.0f,  // Back-left-top
+	-0.5f * scale, -0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,    1.0f, 0.0f,  0.0f, 0.0f, -1.0f,  // Back-left-bottom
+	 0.5f * scale, -0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,     0.0f, 0.0f,  0.0f, 0.0f, -1.0f,  // Back-right-bottom
+	 0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,     0.0f, 1.0f,  0.0f, 0.0f, -1.0f,  // Back-right-top
+	-0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,    1.0f, 1.0f,  0.0f, 0.0f, -1.0f,  // Back-left-top
 
 	// Front Face
-	-0.5f * scale, -0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    0.0f, 0.0f,  // Front-left-bottom
-	 0.5f * scale, -0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,     1.0f, 0.0f,  // Front-right-bottom
-	 0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,     1.0f, 1.0f,  // Front-right-top
-	-0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    0.0f, 1.0f,  // Front-left-top
+	-0.5f * scale, -0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    0.0f, 0.0f,  0.0f, 0.0f,  1.0f,  // Front-left-bottom
+	 0.5f * scale, -0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,     1.0f, 0.0f,  0.0f, 0.0f,  1.0f,  // Front-right-bottom
+	 0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,     1.0f, 1.0f,  0.0f, 0.0f,  1.0f,  // Front-right-top
+	-0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    0.0f, 1.0f,  0.0f, 0.0f,  1.0f,  // Front-left-top
 
 	// Left Face (no texture)
-	-0.5f * scale, -0.5f * scale, -0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-bottom
-	-0.5f * scale, -0.5f * scale,  0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-bottom
-	-0.5f * scale,  0.5f * scale,  0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-top
-	-0.5f * scale,  0.5f * scale, -0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-top
+	-0.5f * scale, -0.5f * scale, -0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // Back-left-bottom
+	-0.5f * scale, -0.5f * scale,  0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // Front-left-bottom
+	-0.5f * scale,  0.5f * scale,  0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // Front-left-top
+	-0.5f * scale,  0.5f * scale, -0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // Back-left-top
 
 	// Right Face (no texture)
-	 0.5f * scale, -0.5f * scale, -0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Back-right-bottom
-	 0.5f * scale, -0.5f * scale,  0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Front-right-bottom
-	 0.5f * scale,  0.5f * scale,  0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Front-right-top
-	 0.5f * scale,  0.5f * scale, -0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,  // Back-right-top
+	 0.5f * scale, -0.5f * scale, -0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // Back-right-bottom
+	 0.5f * scale, -0.5f * scale,  0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // Front-right-bottom
+	 0.5f * scale,  0.5f * scale,  0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // Front-right-top
+	 0.5f * scale,  0.5f * scale, -0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // Back-right-top
 
 	 // Top Face (no texture)
-	 -0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-left-top
-	  0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Back-right-top
-	  0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-right-top
-	 -0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,  // Front-left-top
+	  -0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,   0.0f, 1.0f, 0.0f,  // Back-left-top
+	   0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,   0.0f, 1.0f, 0.0f,  // Back-right-top
+	   0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,   0.0f, 1.0f, 0.0f,  // Front-right-top
+	  -0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,   0.0f, 1.0f, 0.0f,  // Front-left-top
 
-	 // Bottom Face (no texture)
-	 -0.5f * scale, -0.5f * scale, -0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Back-left-bottom
-	  0.5f * scale, -0.5f * scale, -0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Back-right-bottom
-	  0.5f * scale, -0.5f * scale,  0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,  // Front-right-bottom
-	 -0.5f * scale, -0.5f * scale,  0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f   // Front-left-bottom
+	  // Bottom Face (no texture)
+	   -0.5f * scale, -0.5f * scale, -0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,   0.0f, -1.0f, 0.0f,  // Back-left-bottom
+		0.5f * scale, -0.5f * scale, -0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,   0.0f, -1.0f, 0.0f,  // Back-right-bottom
+		0.5f * scale, -0.5f * scale,  0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 0.0f,   0.0f, -1.0f, 0.0f,  // Front-right-bottom
+	   -0.5f * scale, -0.5f * scale,  0.5f * scale,  0.5f, 0.5f, 0.5
 };
-
 
 GLuint objectFloatArtsindices[] = {
 	// Back face
@@ -196,6 +212,41 @@ GLuint objectFloatArtsindices[] = {
 	// Bottom face
 	20, 21, 22,
 	20, 22, 23
+};
+
+GLfloat objectPyramidVertices[] =
+{ //     COORDINATES     /        COLORS          /    TexCoord   /        NORMALS       //
+	-0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f, 	 0.0f, 0.0f,      0.0f, -1.0f, 0.0f, // Bottom side
+	-0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	 0.0f, 5.0f,      0.0f, -1.0f, 0.0f, // Bottom side
+	 0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	 5.0f, 5.0f,      0.0f, -1.0f, 0.0f, // Bottom side
+	 0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f,	 5.0f, 0.0f,      0.0f, -1.0f, 0.0f, // Bottom side
+
+	-0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f, 	 0.0f, 0.0f,     -0.8f, 0.5f,  0.0f, // Left Side
+	-0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	 5.0f, 0.0f,     -0.8f, 0.5f,  0.0f, // Left Side
+	 0.0f, 0.8f,  0.0f,     0.92f, 0.86f, 0.76f,	 2.5f, 5.0f,     -0.8f, 0.5f,  0.0f, // Left Side
+
+	-0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	 5.0f, 0.0f,      0.0f, 0.5f, -0.8f, // Non-facing side
+	 0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	 0.0f, 0.0f,      0.0f, 0.5f, -0.8f, // Non-facing side
+	 0.0f, 0.8f,  0.0f,     0.92f, 0.86f, 0.76f,	 2.5f, 5.0f,      0.0f, 0.5f, -0.8f, // Non-facing side
+
+	 0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	 0.0f, 0.0f,      0.8f, 0.5f,  0.0f, // Right side
+	 0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f,	 5.0f, 0.0f,      0.8f, 0.5f,  0.0f, // Right side
+	 0.0f, 0.8f,  0.0f,     0.92f, 0.86f, 0.76f,	 2.5f, 5.0f,      0.8f, 0.5f,  0.0f, // Right side
+
+	 0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f,	 5.0f, 0.0f,      0.0f, 0.5f,  0.8f, // Facing side
+	-0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f, 	 0.0f, 0.0f,      0.0f, 0.5f,  0.8f, // Facing side
+	 0.0f, 0.8f,  0.0f,     0.92f, 0.86f, 0.76f,	 2.5f, 5.0f,      0.0f, 0.5f,  0.8f  // Facing side
+};
+
+// Indices for vertices order
+GLuint objectPyramidIndices[] =
+{
+	0, 1, 2, // Bottom side
+	0, 2, 3, // Bottom side
+	4, 6, 5, // Left side
+	7, 9, 8, // Non-facing side
+	10, 12, 11, // Right side
+	13, 15, 14 // Facing side
 };
 
 GLfloat objectLightVertices[] = {
@@ -282,7 +333,7 @@ int main() {
 	// Textures
 	int textureFA_Height, textureFA_Width, textureFA_Col;
 	stbi_set_flip_vertically_on_load(1);
-	unsigned char* lastLoadedTexture = stbi_load("FloatArts.png", &textureFA_Width, &textureFA_Height, &textureFA_Col, 0);
+	unsigned char* lastLoadedTexture = stbi_load("brick.png", &textureFA_Width, &textureFA_Height, &textureFA_Col, 0);
 	if (!lastLoadedTexture) {
 		errorLog("AVE", "LOAD", "can't load (FloatArts.png) texture.", "");
 		glfwTerminate();
@@ -334,16 +385,17 @@ void display(GLFWwindow* window, GLuint program, GLuint lightShader, GLuint VAO,
 	proj = glm::perspective(FOV, (float)SCREEN_WIDTH / SCREEN_HEIGHT, NEAR_PLANE, FAR_PLANE);
 
 	glUseProgram(program);
-	glUniformMatrix4fv(uniformCamMatrix, 1, GL_FALSE, glm::value_ptr(proj * view * model));
+	glUniform3f(glGetUniformLocation(program, "cam_pos"), camPos.x, camPos.y, camPos.z);
+	glUniformMatrix4fv(uniformCamMatrix, 1, GL_FALSE, glm::value_ptr(proj * view));
 
-	model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-	rotation = rotatingSpeed; // static rotation
-	double crntTime = glfwGetTime();
-	if (crntTime - lastTime >= 1 / 60) {
-		if (rotation <= 10400)
-			rotation += rotatingSpeed;
-		lastTime = crntTime;
-	}
+	//model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+	//rotation = rotatingSpeed; // static rotation
+	//double crntTime = glfwGetTime();
+	//if (crntTime - lastTime >= 1 / 60) {
+	//	if (rotation <= 10400)
+	//		rotation += rotatingSpeed;
+	//	lastTime = crntTime;
+	//}
 
 	glBindTexture(GL_TEXTURE_2D, textureFloatArts);
 	glBindVertexArray(VAO);
@@ -427,14 +479,17 @@ std::tuple<GLuint, GLuint, GLuint> programBindingInit() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(objectFloatArtsindices), objectFloatArtsindices, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0); // vertices
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)0); // vertices
 	glEnableVertexAttribArray(0);
 
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float))); // colors
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)(3 * sizeof(float))); // colors
 	glEnableVertexAttribArray(1);
 
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float))); // Textures
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)(6 * sizeof(float))); // Textures
 	glEnableVertexAttribArray(2);
+
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)(8 * sizeof(float))); // Normals
+	glEnableVertexAttribArray(3);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
