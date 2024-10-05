@@ -12,6 +12,7 @@
 *	SHAD: Shader Error.
 *	PROG: Program Error.
 *	LOAD: Loading Error.
+*	NONE: Unknown Error.
 */
 #include <iostream>
 #include <tuple>
@@ -35,27 +36,31 @@ float FOV = glm::radians(45.0f);
 float NEAR_PLANE = 0.1f;
 float FAR_PLANE = 400.0f;
 
+// Structs
+struct ObjectData
+{
+	const void* vertices;
+	size_t verticesSize;
+	const void* indices;
+	size_t indicesSize;
+};
+
 // Functions
 void display(GLFWwindow* window, GLuint lightShader, GLuint program, GLuint VAO, GLuint LVAO, double currentTime, 
 	GLuint uniformCamMatrix);
 
-GLuint shaderProgramInit(void);
-void terminateShaderProgram(GLuint program);
+GLuint programInit(const char* vertexShaderCode, const char* fragmentShaderCode);
+void terminateProgram(GLuint program);
 
-GLuint shaderLightInit();
-void terminateShaderLight(GLuint shader);
-
-std::tuple<GLuint, GLuint, GLuint> programBindingInit();
-void terminateProgramBinding(GLuint VAO, GLuint VBO, GLuint EBO);
-
-std::tuple<GLuint, GLuint, GLuint> lightBindingInit();
-void terminateLightBinding(GLuint VAO, GLuint VBO, GLuint EBO);
+std::tuple<GLuint, GLuint, GLuint> createObject(ObjectData object, int layers, int length);
+void terminateObject(GLuint VAO, GLuint VBO, GLuint EBO);
 
 void inputs(GLFWwindow* window);
 
 void checkShaderCompileErrors(GLuint shader);
 void checkProgramLinkErrors(GLuint program);
-
+const char* getGLErrorString(GLenum err);
+void checkOpenGLError(void);
 void errorLog(std::string category, std::string type, std::string massage, std::string comment="");
 
 // Global Variables
@@ -193,7 +198,46 @@ GLfloat objectFloatArtsvertices[] = {
 	   -0.5f * scale, -0.5f * scale,  0.5f * scale,  0.5f, 0.5f, 0.5
 };
 
-GLuint objectFloatArtsindices[] = {
+GLfloat objectCubeVerticesFull[] = {
+	// Positions          // Colors               // Texture Coordinates      // Normals
+	// Back Face
+	-0.5f * scale, -0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,    1.0f, 0.0f,  0.0f, 0.0f, -1.0f,  // Back-left-bottom
+	 0.5f * scale, -0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,     0.0f, 0.0f,  0.0f, 0.0f, -1.0f,  // Back-right-bottom
+	 0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,     0.0f, 1.0f,  0.0f, 0.0f, -1.0f,  // Back-right-top
+	-0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 0.0f, 0.0f,    1.0f, 1.0f,  0.0f, 0.0f, -1.0f,  // Back-left-top
+
+	// Front Face
+	-0.5f * scale, -0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    0.0f, 0.0f,  0.0f, 0.0f,  1.0f,  // Front-left-bottom
+	 0.5f * scale, -0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    1.0f, 0.0f,  0.0f, 0.0f,  1.0f,  // Front-right-bottom
+	 0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    1.0f, 1.0f,  0.0f, 0.0f,  1.0f,  // Front-right-top
+	-0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 1.0f,    0.0f, 1.0f,  0.0f, 0.0f,  1.0f,  // Front-left-top
+
+	// Left Face
+	-0.5f * scale, -0.5f * scale, -0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // Back-left-bottom
+	-0.5f * scale, -0.5f * scale,  0.5f * scale,  0.0f, 1.0f, 0.0f,    1.0f, 0.0f,  -1.0f, 0.0f, 0.0f,  // Front-left-bottom
+	-0.5f * scale,  0.5f * scale,  0.5f * scale,  0.0f, 1.0f, 0.0f,    1.0f, 1.0f,  -1.0f, 0.0f, 0.0f,  // Front-left-top
+	-0.5f * scale,  0.5f * scale, -0.5f * scale,  0.0f, 1.0f, 0.0f,    0.0f, 1.0f,  -1.0f, 0.0f, 0.0f,  // Back-left-top
+
+	// Right Face
+	 0.5f * scale, -0.5f * scale, -0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // Back-right-bottom
+	 0.5f * scale, -0.5f * scale,  0.5f * scale,  0.0f, 0.0f, 1.0f,    1.0f, 0.0f,   1.0f, 0.0f, 0.0f,  // Front-right-bottom
+	 0.5f * scale,  0.5f * scale,  0.5f * scale,  0.0f, 0.0f, 1.0f,    1.0f, 1.0f,   1.0f, 0.0f, 0.0f,  // Front-right-top
+	 0.5f * scale,  0.5f * scale, -0.5f * scale,  0.0f, 0.0f, 1.0f,    0.0f, 1.0f,   1.0f, 0.0f, 0.0f,  // Back-right-top
+
+	 // Top Face
+	 -0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 0.0f,   0.0f, 1.0f, 0.0f,  // Back-left-top
+	  0.5f * scale,  0.5f * scale, -0.5f * scale,  1.0f, 1.0f, 0.0f,    1.0f, 0.0f,   0.0f, 1.0f, 0.0f,  // Back-right-top
+	  0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 0.0f,    1.0f, 1.0f,   0.0f, 1.0f, 0.0f,  // Front-right-top
+	 -0.5f * scale,  0.5f * scale,  0.5f * scale,  1.0f, 1.0f, 0.0f,    0.0f, 1.0f,   0.0f, 1.0f, 0.0f,  // Front-left-top
+
+	 // Bottom Face
+	 -0.5f * scale, -0.5f * scale, -0.5f * scale,  0.5f, 0.5f, 0.5f,    0.0f, 1.0f,   0.0f, -1.0f, 0.0f,  // Back-left-bottom
+	  0.5f * scale, -0.5f * scale, -0.5f * scale,  0.5f, 0.5f, 0.5f,    1.0f, 1.0f,   0.0f, -1.0f, 0.0f,  // Back-right-bottom
+	  0.5f * scale, -0.5f * scale,  0.5f * scale,  0.5f, 0.5f, 0.5f,    1.0f, 0.0f,   0.0f, -1.0f, 0.0f,  // Front-right-bottom
+	 -0.5f * scale, -0.5f * scale,  0.5f * scale,  0.5f, 0.5f
+};
+
+GLuint objectCubeIndices[] = {
 	// Back face
 	0, 1, 2,
 	0, 2, 3,
@@ -301,13 +345,18 @@ int main() {
 	glViewport(viewPortX1, viewPortY1, viewPortX2, viewPortY2);
 
 	// Shader program and Bindings
-	GLuint program = shaderProgramInit();
+	GLuint program = programInit(vertexShaderCode, fragmentShaderCode);
 	GLuint VAO, VBO, EBO;
-	std::tie(VAO, VBO, EBO) = programBindingInit();
+	ObjectData floatArtsCube = { objectCubeVerticesFull, sizeof(objectCubeVerticesFull), objectCubeIndices, sizeof(objectCubeIndices) };
+	//ObjectData pyramid = { objectPyramidVertices, sizeof(objectPyramidVertices), objectPyramidIndices, sizeof(objectPyramidIndices) };
+	std::tie(VAO, VBO, EBO) = createObject(floatArtsCube, 3, 11);
+	checkOpenGLError();
 
-	GLuint lightShader = shaderLightInit();
+	GLuint lightShader = programInit(vertexShaderLightCode, fragmentShaderLightCode);
 	GLuint LVAO, LVBO, LEBO;
-	std::tie(LVAO, LVBO, LEBO) = lightBindingInit();
+	ObjectData lightCube = { objectLightVertices, sizeof(objectLightVertices), objectLightIndices, sizeof(objectCubeIndices) };
+	std::tie(LVAO, LVBO, LEBO) = createObject(lightCube, 0, 3);
+	checkOpenGLError();
 
 	// Uniforms
 	GLuint uniformTexture0 = glGetUniformLocation(program, "tex0");
@@ -333,7 +382,7 @@ int main() {
 	// Textures
 	int textureFA_Height, textureFA_Width, textureFA_Col;
 	stbi_set_flip_vertically_on_load(1);
-	unsigned char* lastLoadedTexture = stbi_load("brick.png", &textureFA_Width, &textureFA_Height, &textureFA_Col, 0);
+	unsigned char* lastLoadedTexture = stbi_load("FloatArts.png", &textureFA_Width, &textureFA_Height, &textureFA_Col, 0);
 	if (!lastLoadedTexture) {
 		errorLog("AVE", "LOAD", "can't load (FloatArts.png) texture.", "");
 		glfwTerminate();
@@ -358,12 +407,13 @@ int main() {
 	glEnable(GL_DEPTH_TEST);
 	while (!glfwWindowShouldClose(window)) {
 		display(window, program, lightShader, VAO, LVAO, glfwGetTime(), uniformCamMatrix);
+		checkOpenGLError();
 	}
 
-	terminateProgramBinding(VAO, VBO, EBO);
-	terminateShaderProgram(program);
-	terminateShaderLight(lightShader);
-	terminateLightBinding(LVAO, LVBO, LEBO);
+	terminateObject(VAO, VBO, EBO);
+	terminateProgram(program);
+	terminateProgram(lightShader);
+	terminateObject(LVAO, LVBO, LEBO);
 
 	glDeleteTextures(1, &textureFloatArts);
 	glfwDestroyWindow(window);
@@ -371,7 +421,7 @@ int main() {
 	return 0;
 }
 
-//******************************
+//******************************************************************************************************************************
 void display(GLFWwindow* window, GLuint program, GLuint lightShader, GLuint VAO, GLuint LVAO, double currentTime, 
 	GLuint uniformCamMatrix) {
 	glClearColor(screenColor[0], screenColor[1], screenColor[2], screenColor[3]);
@@ -399,7 +449,7 @@ void display(GLFWwindow* window, GLuint program, GLuint lightShader, GLuint VAO,
 
 	glBindTexture(GL_TEXTURE_2D, textureFloatArts);
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, sizeof(objectFloatArtsindices)/sizeof(int), GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, sizeof(objectCubeIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
 
 	glUseProgram(lightShader);
 	glUniformMatrix4fv(glGetUniformLocation(lightShader, "camMatrix"), 1, GL_FALSE, glm::value_ptr(proj * view));
@@ -410,7 +460,7 @@ void display(GLFWwindow* window, GLuint program, GLuint lightShader, GLuint VAO,
 	glfwPollEvents();
 }
 
-GLuint shaderProgramInit() {
+GLuint programInit(const char* vertexShaderCode, const char* fragmentShaderCode) {
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER),
 		fragmentShader = glCreateShader(GL_FRAGMENT_SHADER),
 		shaderProgram = glCreateProgram();
@@ -434,62 +484,49 @@ GLuint shaderProgramInit() {
 	return shaderProgram;
 }
 
-void terminateShaderProgram(GLuint program) {
+void terminateProgram(GLuint program) {
 	glDeleteProgram(program);
 }
 
-GLuint shaderLightInit() {
-	GLuint vertexShaderLight = glCreateShader(GL_VERTEX_SHADER),
-		fragmentShaderLight = glCreateShader(GL_FRAGMENT_SHADER),
-		shaderLight = glCreateProgram();
-
-	glShaderSource(vertexShaderLight, 1, &vertexShaderLightCode, NULL);
-	glCompileShader(vertexShaderLight);
-	checkShaderCompileErrors(vertexShaderLight);
-
-	glShaderSource(fragmentShaderLight, 1, &fragmentShaderLightCode, NULL);
-	glCompileShader(fragmentShaderLight);
-	checkShaderCompileErrors(fragmentShaderLight);
-
-	glAttachShader(shaderLight, vertexShaderLight);
-	glAttachShader(shaderLight, fragmentShaderLight);
-	glLinkProgram(shaderLight);
-	checkProgramLinkErrors(shaderLight);
-
-	glDeleteShader(vertexShaderLight);
-	glDeleteShader(fragmentShaderLight);
-
-	return shaderLight;
-}
-
-void terminateShaderLight(GLuint shaderLight) {
-	glDeleteProgram(shaderLight);
-}
-
-std::tuple<GLuint, GLuint, GLuint> programBindingInit() {
+std::tuple<GLuint, GLuint, GLuint> createObject(ObjectData object, int layers, int length) {
 	GLuint VAO, VBO, EBO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
 	glGenBuffers(1, &EBO);
 
 	glBindVertexArray(VAO);
+
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(objectFloatArtsvertices), objectFloatArtsvertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, object.verticesSize, object.vertices, GL_STATIC_DRAW);
+	checkOpenGLError();
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(objectFloatArtsindices), objectFloatArtsindices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, object.indicesSize, object.indices, GL_STATIC_DRAW);
+	checkOpenGLError();
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)0); // vertices
-	glEnableVertexAttribArray(0);
+	if (layers >= 0) {
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, length * sizeof(float), (void*)0); // vertices
+		glEnableVertexAttribArray(0);
+		checkOpenGLError();
+	}
 
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)(3 * sizeof(float))); // colors
-	glEnableVertexAttribArray(1);
+	if (layers >= 1) {
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, length * sizeof(float), (void*)(3 * sizeof(float))); // colors
+		glEnableVertexAttribArray(1);
+		checkOpenGLError();
+	}
 
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)(6 * sizeof(float))); // Textures
-	glEnableVertexAttribArray(2);
+	if (layers >= 2) {
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, length * sizeof(float), (void*)(6 * sizeof(float))); // Textures
+		glEnableVertexAttribArray(2);
+		checkOpenGLError();
+	}
 
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), (void*)(8 * sizeof(float))); // Normals
-	glEnableVertexAttribArray(3);
+	if (layers >= 3) {
+		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, length * sizeof(float), (void*)(8 * sizeof(float))); // Normals
+		glEnableVertexAttribArray(3);
+		checkOpenGLError();
+	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
@@ -498,36 +535,7 @@ std::tuple<GLuint, GLuint, GLuint> programBindingInit() {
 	return std::make_tuple(VAO, VBO, EBO);
 }
 
-void terminateProgramBinding(GLuint VAO, GLuint VBO, GLuint EBO) {
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
-}
-
-std::tuple<GLuint, GLuint, GLuint> lightBindingInit() {
-	GLuint VAO, VBO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
-
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(objectLightVertices), objectLightVertices, GL_STATIC_DRAW);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(objectLightIndices), objectLightIndices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0); // vertices
-	glEnableVertexAttribArray(0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	return std::make_tuple(VAO, VBO, EBO);
-}
-
-void terminateLightBinding(GLuint VAO, GLuint VBO, GLuint EBO) {
+void terminateObject(GLuint VAO, GLuint VBO, GLuint EBO) {
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
 	glDeleteBuffers(1, &EBO);
@@ -607,6 +615,24 @@ void checkProgramLinkErrors(GLuint program) {
 		char infoLog[512];
 		glGetProgramInfoLog(program, 512, NULL, infoLog);
 		errorLog("AVE", "PROG", infoLog, "");
+	}
+}
+
+const char* getGLErrorString(GLenum err) {
+	switch (err) {
+	case GL_NO_ERROR:          return "No error";
+	case GL_INVALID_ENUM:     return "Invalid enum";
+	case GL_INVALID_VALUE:    return "Invalid value";
+	case GL_INVALID_OPERATION: return "Invalid operation";
+	case GL_OUT_OF_MEMORY:    return "Out of memory";
+	default:                  return "Unknown error";
+	}
+}
+
+void checkOpenGLError() {
+	GLenum err;
+	while ((err = glGetError()) != GL_NO_ERROR) {
+		errorLog("AVE", "NONE", getGLErrorString(err), "OpenGL ERROR");
 	}
 }
 
