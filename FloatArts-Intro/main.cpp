@@ -443,7 +443,7 @@ void display(GLFWwindow* window, GLuint program, GLuint lightShader, GLuint VAO,
 	//***********************************************************************************
 	model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
 	lModel = glm::rotate(lModel, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-	rotation = rotatingSpeed; // static rotation
+	//rotation = rotatingSpeed; // static rotation
 
 	//double crntTime = glfwGetTime();
 	//if (crntTime - lastTime >= 1 / 60) { 
