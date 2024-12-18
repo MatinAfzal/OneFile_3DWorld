@@ -154,6 +154,7 @@
   <ItemGroup>
     <Image Include="..\..\..\..\brick.png" />
     <Image Include="..\..\..\..\FloatArts-Intro\FloatArts.png" />
+    <Image Include="matin_on_the_code.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

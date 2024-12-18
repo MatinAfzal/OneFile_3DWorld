@@ -1,5 +1,4 @@
 /*
-* Float Arts
 * By Matin Afzal Asr
 * 27/9/2024
 *
@@ -65,6 +64,7 @@ void errorLog(std::string category, std::string type, std::string massage, std::
 
 // Global Variables
 glm::mat4 model = glm::mat4(1.0f);
+glm::mat4 lModel = glm::mat4(1.0f);
 glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 2.0f);
 glm::vec3 orientation = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -77,7 +77,7 @@ glm::vec3 cubePos = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::mat4 cubeModel = glm::mat4(1.0f);
 
 float rotation = 0.0f;
-float rotatingSpeed = 1.0f;
+float rotatingSpeed = 2.0f;
 float camSpeed = 0.1;
 float sensitivity = 100.0;
 bool firstClick = true;
@@ -136,9 +136,10 @@ const char* fragmentShaderCode =
 "   float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 8);\n"
 "   float specular = specAmount * specularLight;\n"
 
-"	FragColor = texture(tex0, texCoord) * lightColor * (diffuse + ambient + specular);\n"
+"	FragColor = texture(tex0, texCoord) * lightColor  * (diffuse + ambient + specular);\n"
 "}\n\0;"
 ;
+
 const char* vertexShaderLightCode =
 "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
@@ -347,9 +348,10 @@ int main() {
 	// Shader program and Bindings
 	GLuint program = programInit(vertexShaderCode, fragmentShaderCode);
 	GLuint VAO, VBO, EBO;
-	ObjectData floatArtsCube = { objectCubeVerticesFull, sizeof(objectCubeVerticesFull), objectCubeIndices, sizeof(objectCubeIndices) };
-	//ObjectData pyramid = { objectPyramidVertices, sizeof(objectPyramidVertices), objectPyramidIndices, sizeof(objectPyramidIndices) };
-	std::tie(VAO, VBO, EBO) = createObject(floatArtsCube, 3, 11);
+	//ObjectData floatArtsCube = { objectCubeVerticesFull, sizeof(objectCubeVerticesFull), objectCubeIndices, sizeof(objectCubeIndices) };
+	ObjectData pyramid = { objectPyramidVertices, sizeof(objectPyramidVertices), objectPyramidIndices, sizeof(objectPyramidIndices) };
+	//std::tie(VAO, VBO, EBO) = createObject(floatArtsCube, 3, 11);
+	std::tie(VAO, VBO, EBO) = createObject(pyramid, 3, 11);
 	checkOpenGLError();
 
 	GLuint lightShader = programInit(vertexShaderLightCode, fragmentShaderLightCode);
@@ -382,7 +384,7 @@ int main() {
 	// Textures
 	int textureFA_Height, textureFA_Width, textureFA_Col;
 	stbi_set_flip_vertically_on_load(1);
-	unsigned char* lastLoadedTexture = stbi_load("FloatArts.png", &textureFA_Width, &textureFA_Height, &textureFA_Col, 0);
+	unsigned char* lastLoadedTexture = stbi_load("matin_on_the_code.png", &textureFA_Width, &textureFA_Height, &textureFA_Col, 0);
 	if (!lastLoadedTexture) {
 		errorLog("AVE", "LOAD", "can't load (FloatArts.png) texture.", "");
 		glfwTerminate();
@@ -438,23 +440,35 @@ void display(GLFWwindow* window, GLuint program, GLuint lightShader, GLuint VAO,
 	glUniform3f(glGetUniformLocation(program, "cam_pos"), camPos.x, camPos.y, camPos.z);
 	glUniformMatrix4fv(uniformCamMatrix, 1, GL_FALSE, glm::value_ptr(proj * view));
 
-	//model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-	//rotation = rotatingSpeed; // static rotation
+	//***********************************************************************************
+	model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+	lModel = glm::rotate(lModel, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+	rotation = rotatingSpeed; // static rotation
+
 	//double crntTime = glfwGetTime();
-	//if (crntTime - lastTime >= 1 / 60) {
+	//if (crntTime - lastTime >= 1 / 60) { 
 	//	if (rotation <= 10400)
 	//		rotation += rotatingSpeed;
 	//	lastTime = crntTime;
 	//}
 
+	cubeModel = glm::translate(model, cubePos);
+	glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, glm::value_ptr(cubeModel));
+
+	lightModel = glm::translate(lModel, lightPos);
+	glUseProgram(lightShader);
+	glUniformMatrix4fv(glGetUniformLocation(lightShader, "model"), 1, GL_FALSE, glm::value_ptr(lightModel));
+	glUseProgram(program); // Back to main program.
+	//***********************************************************************************
+
 	glBindTexture(GL_TEXTURE_2D, textureFloatArts);
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, sizeof(objectCubeIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, sizeof(objectPyramidIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
 
 	glUseProgram(lightShader);
 	glUniformMatrix4fv(glGetUniformLocation(lightShader, "camMatrix"), 1, GL_FALSE, glm::value_ptr(proj * view));
 	glBindVertexArray(LVAO);
-	glDrawElements(GL_TRIANGLES, sizeof(objectLightIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, sizeof(objectPyramidIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
